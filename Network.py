@@ -1,4 +1,4 @@
-from Layer import Layer
+from Layers import Layer
 from math import ceil
 from typing import Callable
 from ActivationFunctions import ActivationFunctions

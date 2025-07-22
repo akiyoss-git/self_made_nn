@@ -3,7 +3,7 @@ from typing import Optional, TYPE_CHECKING
 from Input import Input
 
 if TYPE_CHECKING:
-    from Layer import Layer
+    from Layers import Layer
 
 class Neuron:
     def __init__(self, layer: "Layer", prev_layer: Optional["Layer"] = None):
