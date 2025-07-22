@@ -22,3 +22,65 @@ class Layer:
         for i in range(len(value)):
             self.neurons[i].n_input(value[i])
 
+class ConvolutionalLayer(Layer):
+    def __init__(
+        self,
+        network: "Network",
+        input_size: int,
+        kernel_size: int = 3,
+        num_kernels: int = 1,
+        stride: int = 1,
+        padding: int = 0,
+        prevLayer: Optional["Layer"] = None
+    ):
+        super().__init__(network, input_size, prevLayer)
+        import random
+        self.kernel_size: int = kernel_size
+        self.num_kernels: int = num_kernels
+        self.stride: int = stride
+        self.padding: int = padding
+        self.kernels: list[list[float]] = [
+            [random.uniform(-0.5, 0.5) for _ in range(kernel_size)]
+            for _ in range(num_kernels)
+        ]
+        self.biases: list[float] = [random.uniform(-0.5, 0.5) for _ in range(num_kernels)]
+        self.output_size: int = ((input_size - kernel_size + 2 * padding) // stride) + 1
+
+    def forward(self, input_data: list[float]) -> list[float] | list[list[float]]:
+        padded = [0.0] * self.padding + input_data + [0.0] * self.padding
+        outputs: list[list[float]] = []
+        for k in range(self.num_kernels):
+            kernel = self.kernels[k]
+            bias = self.biases[k]
+            out: list[float] = []
+            for i in range(0, len(padded) - self.kernel_size + 1, self.stride):
+                window = padded[i:i+self.kernel_size]
+                conv = sum(w * x for w, x in zip(kernel, window)) + bias
+                # Пример: ReLU-активация
+                conv = max(0, conv)
+                out.append(conv)
+            outputs.append(out)
+        return outputs[0] if self.num_kernels == 1 else outputs
+
+
+class MaxPooling(Layer):
+    def __init__(self, network: "Network", input_size: int, pool_size: int = 2, stride: int = 2, prevLayer: Optional["Layer"] = None):
+        super().__init__(network, input_size, prevLayer)
+        self.pool_size: int = pool_size
+        self.stride: int = stride
+        self.output_size: int = (input_size - pool_size) // stride + 1
+
+    def forward(self, input_data: list[float]) -> list[float]:
+        outputs: list[float] = []
+        for i in range(0, len(input_data) - self.pool_size + 1, self.stride):
+            window = input_data[i:i+self.pool_size]
+            outputs.append(max(window))
+        return outputs
+    
+class Flatten(Layer):
+    def __init__(self, network: "Network", input_size: int, prevLayer: Optional["Layer"] = None):
+        super().__init__(network, input_size, prevLayer)
+
+    def forward(self, input_data: list[list[float]]) -> list[float]:
+        return [item for sublist in input_data for item in sublist]
+    

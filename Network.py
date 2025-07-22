@@ -1,36 +1,48 @@
-from Layers import Layer
-from math import ceil
+from Layers import Layer, ConvolutionalLayer, MaxPooling, Flatten
 from typing import Callable
 from ActivationFunctions import ActivationFunctions
+from basic_types import FloatArray, Float2DArray
 
 class Network:
-    def __init__(self, input_size: int, output_size: int, hidden_layers_count: int = 1, learning_rate: float = 0.5, activation_function: str = "linear"):
+    def __init__(self, input_size: int, output_size: int, learning_rate: float = 0.5, activation_function: str = "linear"):
         functions = ActivationFunctions.get_functions(activation_function)
         self.activation_function: Callable[[float], float] = functions[0]
         self.activation_function_derivative: Callable[[float], float] = functions[1]
         self.learning_rate: float = learning_rate
 
         self.layers = [Layer(self, input_size, None)]
-        for _ in range(hidden_layers_count):
-            layer_size = min(input_size * 2 - 1, ceil((input_size * 2 / 3) + output_size))
-            self.layers.append(Layer(self, layer_size, self.layers[-1]))
         self.layers.append(Layer(self, output_size, self.layers[-1]))
 
-    def nn_input(self, value: list[float]) -> None:
-        self.layers[0].l_input(value)
+    def nn_input(self, value: FloatArray) -> None:
+        output_value: FloatArray | Float2DArray = value
+        for layer in self.layers:
+            if isinstance(layer, (ConvolutionalLayer, MaxPooling)):
+                if isinstance(output_value, list) and output_value and isinstance(output_value[0], list): # type: ignore
+                    output_value = [item for sublist in output_value for item in sublist] # type: ignore
+                if isinstance(output_value, list) and (not output_value or isinstance(output_value[0], (float, int))): # type: ignore
+                    output_value = layer.forward(output_value) # type: ignore
+                else:
+                    raise ValueError("Convolutional layer expects a list input.")
+            elif isinstance(layer, Flatten):
+                output_value = layer.forward(output_value)
+            else:
+                layer.l_input(output_value)
+
+    def add_layer(self, layer_type: str, neurons_count: int) -> None:
+        pass
     
     @property
     def prediction(self):
         return [n.value for n in self.layers[-1].neurons]
     
-    def train_once(self, dataset: list[list[list[float]]]) -> None:
+    def train_once(self, dataset: list[Float2DArray]) -> None:
         for case in dataset:
             input_data, expected_output = case
             self.nn_input(input_data)
             for i in range(len(self.prediction)):
                 self.layers[-1].neurons[i].error(self.prediction[i] - expected_output[i])
 
-    def train(self, dataset: list[list[list[float]]], epochs: int = 1000):
+    def train(self, dataset: list[Float2DArray], epochs: int = 1000):
         for _ in range(epochs):
             self.train_once(dataset)
 
